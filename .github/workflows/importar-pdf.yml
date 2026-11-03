@@ -1,0 +1,42 @@
+name: Importar PDF autorizados
+on:
+  push:
+    paths:
+      - '.github/workflows/importar-pdf.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install gdown==5.2.0 pypdf==6.1.1
+      - name: Descargar y validar Renca
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import gdown
+          from pypdf import PdfReader
+          dest = Path("pdfs/01-renca-2018.pdf")
+          dest.parent.mkdir(exist_ok=True)
+          gdown.download(id="1fIg8MY5-DixFqelEnWxzWXYKN113kuKa", output=str(dest), quiet=False)
+          assert dest.stat().st_size == 5426066, "Tamaño distinto al original"
+          assert dest.read_bytes()[:5] == b"%PDF-", "Archivo no es PDF"
+          doc = PdfReader(dest)
+          assert len(doc.pages) > 0
+          print(f"Renca validado: {len(doc.pages)} páginas, {dest.stat().st_size} bytes")
+          PY
+      - name: Guardar PDF en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pdfs/01-renca-2018.pdf
+          if ! git diff --cached --quiet; then
+            git commit -m "Publicar PDF completo de Renca autorizado por Salvador"
+            git push
+          fi
