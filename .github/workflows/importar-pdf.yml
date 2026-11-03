@@ -9,34 +9,38 @@ permissions:
 jobs:
   importar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install gdown==5.2.0 pypdf==6.1.1
-      - name: Descargar y validar Renca
+      - name: Descargar y validar publicaciones autorizadas
         run: |
           python - <<'PY'
           from pathlib import Path
           import gdown
           from pypdf import PdfReader
-          dest = Path("pdfs/01-renca-2018.pdf")
-          dest.parent.mkdir(exist_ok=True)
-          gdown.download(id="1fIg8MY5-DixFqelEnWxzWXYKN113kuKa", output=str(dest), quiet=False)
-          assert dest.stat().st_size == 5426066, "Tamaño distinto al original"
-          assert dest.read_bytes()[:5] == b"%PDF-", "Archivo no es PDF"
-          doc = PdfReader(dest)
-          assert len(doc.pages) > 0
-          print(f"Renca validado: {len(doc.pages)} páginas, {dest.stat().st_size} bytes")
+          files = [["01-renca-2018.pdf","1fIg8MY5-DixFqelEnWxzWXYKN113kuKa",5426066],["02-caldera-2019.pdf","1J7j2pIVycokr660Im6jO8E0e9-PLXU90",8642867],["03-colina-patrimonio-2020.pdf","101GB1bSnlxmeGKnZ45SDC3bwd0fiNKFN",19079534],["04-colina-archivo-2020.pdf","1FWOv8SyVZ9rhI_7w6oPHHCWRwtC2oxvw",15082660],["05-los-andes-archivo-2021.pdf","1aWvxmHKOhHK9yb2MF_o23PjR6yDXpyKs",18765364],["06-calle-larga-patrimonio-2022.pdf","1ntBesUrfeTZ8AZzI5RhyOWa0G4zLtP7C",56636633],["07-calle-larga-archivo-2022.pdf","1q8YO4Q2DBtcgvRyuKHTF-4P4Kt3u-_Fs",9017822],["08-lonquen-2022.pdf","1Q6zD6BgBvLm8f7OsaV5vyY6-kD3kfK5X",22832199],["09-los-andes-patrimonio-2023.pdf","1pZTxxTXaFIXpaOPe3xz536L9yI7gfwE9",7670236],["10-rinconada-2023.pdf","12aHT15mFG2sK239mIr-6WeGfeGLTwMsR",9570040],["11-las-condes-2023.pdf","1BafBV373SztxDL_Cx_tOPB5eYxcxq041",12612747],["12-llay-llay-2023.pdf","170lg_OszAUO--bWoqwEyU9zANrx0TqSG",11036153]]
+          for name, file_id, size in files:
+              dest = Path("pdfs") / name
+              dest.parent.mkdir(exist_ok=True)
+              if not dest.exists():
+                  gdown.download(id=file_id, output=str(dest), quiet=False)
+              assert dest.stat().st_size == size, f"{name}: tamaño distinto al original"
+              assert dest.read_bytes()[:5] == b"%PDF-", f"{name}: no es PDF"
+              doc = PdfReader(dest)
+              assert len(doc.pages) > 0
+              print(f"{name}: {len(doc.pages)} páginas, {size} bytes, validado")
+          
           PY
-      - name: Guardar PDF en el repositorio
+      - name: Guardar los PDF completos en el repositorio
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pdfs/01-renca-2018.pdf
+          git add pdfs/
           if ! git diff --cached --quiet; then
-            git commit -m "Publicar PDF completo de Renca autorizado por Salvador"
+            git commit -m "Publicar los 12 PDF completos autorizados por Salvador"
             git push
           fi
